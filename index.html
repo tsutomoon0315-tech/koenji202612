@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>koenji 予約</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;500;600&family=Noto+Sans+JP:wght@300;400;500&display=swap');
+
+:root {
+–bg: #f5f0e8;
+–surface: #fffdf9;
+–border: #ddd5c0;
+–text: #3a3228;
+–text-sub: #8a7f72;
+–accent: #b5845a;
+–accent-light: #e8d4be;
+–accent-pale: #f7efe4;
+–red: #c0614a;
+–green: #5a8f6a;
+}
+
+- { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(–bg); color: var(–text); font-family: ‘Noto Sans JP’, sans-serif; font-weight: 300; min-height: 100vh; }
+
+.header { background: var(–accent); color: white; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+.header-title { font-family: ‘Noto Serif JP’, serif; font-size: 1.1rem; letter-spacing: 0.08em; }
+.header-sub { font-size: 0.72rem; opacity: 0.75; letter-spacing: 0.1em; }
+.btn-add-header { background: white; color: var(–accent); border: none; padding: 8px 18px; border-radius: 20px; font-family: ‘Noto Sans JP’, sans-serif; font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: opacity 0.2s; }
+.btn-add-header:hover { opacity: 0.85; }
+
+.sync-bar { background: var(–accent-pale); border-bottom: 1px solid var(–accent-light); padding: 6px 24px; font-size: 0.72rem; color: var(–text-sub); display: flex; align-items: center; gap: 6px; }
+.sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(–green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.calendar-wrap { max-width: 780px; margin: 0 auto; padding: 24px 16px; }
+
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: var(–border); border-radius: 8px; overflow: hidden; margin-bottom: 24px; }
+
+.day-header { background: var(–accent-pale); text-align: center; padding: 8px 0; font-size: 0.72rem; letter-spacing: 0.08em; color: var(–text-sub); }
+.day-header.sun { color: var(–red); }
+.day-header.sat { color: var(–accent); }
+
+.day-cell { background: var(–surface); min-height: 72px; padding: 6px; cursor: pointer; transition: background 0.15s; }
+.day-cell:hover { background: var(–accent-pale); }
+.day-cell.empty { background: var(–bg); cursor: default; }
+.day-cell.today .day-num { background: var(–accent); color: white; border-radius: 50%; }
+.day-cell.sunday .day-num { color: var(–red); }
+.day-cell.saturday .day-num { color: var(–accent); }
+
+.day-num { font-size: 0.82rem; font-weight: 500; margin-bottom: 4px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+
+.reservation-dot { font-size: 0.62rem; background: var(–accent-light); color: var(–accent); border-radius: 3px; padding: 1px 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.reservation-dot.many { background: var(–accent); color: white; }
+
+.day-detail { display: none; background: var(–surface); border: 1px solid var(–border); border-radius: 8px; padding: 20px; margin-bottom: 24px; animation: fadeIn 0.2s ease; }
+.day-detail.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+.detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(–border); }
+.detail-date { font-family: ‘Noto Serif JP’, serif; font-size: 1.1rem; color: var(–accent); }
+.btn-close-detail { background: none; border: none; color: var(–text-sub); font-size: 1.2rem; cursor: pointer; padding: 0 4px; }
+
+.time-slots { display: flex; flex-direction: column; gap: 6px; }
+.time-slot { display: flex; align-items: flex-start; gap: 12px; padding: 8px 10px; border-radius: 6px; border: 1px solid transparent; }
+.time-slot.has-reservation { background: var(–accent-pale); border-color: var(–accent-light); }
+.time-label { font-size: 0.78rem; color: var(–text-sub); min-width: 44px; padding-top: 2px; font-weight: 500; }
+.reservation-list { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+
+.reservation-item { background: var(–surface); border: 1px solid var(–accent-light); border-radius: 6px; padding: 8px 12px; font-size: 0.82rem; }
+.res-top { display: flex; justify-content: space-between; align-items: center; }
+.res-name { font-weight: 500; color: var(–text); }
+.res-pax { color: var(–text-sub); font-size: 0.75rem; }
+.res-tags { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+.res-tag { font-size: 0.68rem; padding: 2px 8px; border-radius: 10px; background: var(–accent-light); color: var(–accent); font-weight: 500; }
+.res-memo { font-size: 0.75rem; color: var(–text-sub); margin-top: 4px; }
+.btn-delete-res { background: none; border: none; color: var(–text-sub); font-size: 0.75rem; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: all 0.2s; white-space: nowrap; }
+.btn-delete-res:hover { background: var(–red); color: white; }
+
+.btn-add-slot { background: none; border: 1px dashed var(–border); color: var(–text-sub); padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; font-family: ‘Noto Sans JP’, sans-serif; }
+.btn-add-slot:hover { border-color: var(–accent); color: var(–accent); }
+
+/* モーダル */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(58,50,40,0.55); z-index: 200; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+.modal-overlay.show { display: flex; }
+.modal-box { background: var(–surface); border-radius: 12px; padding: 28px 24px; max-width: 380px; width: 100%; box-shadow: 0 8px 40px rgba(0,0,0,0.15); animation: modalIn 0.25s ease; margin: auto; }
+@keyframes modalIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+.modal-title { font-family: ‘Noto Serif JP’, serif; font-size: 1.1rem; margin-bottom: 20px; color: var(–text); }
+
+.field-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.field-group label { font-size: 0.72rem; letter-spacing: 0.08em; color: var(–text-sub); }
+.field-group input, .field-group select { border: 1px solid var(–border); padding: 10px 12px; font-family: ‘Noto Sans JP’, sans-serif; font-size: 0.88rem; font-weight: 300; outline: none; border-radius: 6px; transition: border-color 0.2s; background: var(–surface); color: var(–text); width: 100%; }
+.field-group input:focus, .field-group select:focus { border-color: var(–accent); }
+
+/* タグボタン */
+.tag-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.tag-btn { background: none; border: 1px solid var(–border); color: var(–text-sub); padding: 6px 14px; border-radius: 20px; font-family: ‘Noto Sans JP’, sans-serif; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
+.tag-btn.active { background: var(–accent); border-color: var(–accent); color: white; font-weight: 500; }
+
+.modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
+.btn-modal-submit { flex: 1; background: var(–accent); color: white; border: none; padding: 12px; font-family: ‘Noto Sans JP’, sans-serif; font-size: 0.88rem; font-weight: 500; cursor: pointer; border-radius: 6px; transition: opacity 0.2s; }
+.btn-modal-submit:hover { opacity: 0.85; }
+.btn-modal-cancel { flex: 1; background: none; border: 1px solid var(–border); color: var(–text-sub); padding: 12px; font-family: ‘Noto Sans JP’, sans-serif; font-size: 0.88rem; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+.btn-modal-cancel:hover { border-color: var(–text-sub); color: var(–text); }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(–text); color: white; padding: 10px 20px; border-radius: 6px; font-size: 0.8rem; border-left: 3px solid var(–accent); transition: transform 0.3s ease; z-index: 999; white-space: nowrap; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">koenji</div>
+    <div class="header-sub">12月 予約カレンダー</div>
+  </div>
+  <button class="btn-add-header" onclick="openModalQuick()">＋ 予約を入れる</button>
+</div>
+
+<div class="sync-bar">
+  <div class="sync-dot"></div>
+  <span id="sync-status">接続中...</span>
+</div>
+
+<div class="calendar-wrap">
+  <div class="calendar-grid" id="calendar-grid"></div>
+  <div class="day-detail" id="day-detail"></div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title">予約を入れる</div>
+    <div class="field-group">
+      <label>日付</label>
+      <select id="modal-date"></select>
+    </div>
+    <div class="field-group">
+      <label>時間</label>
+      <select id="modal-time"></select>
+    </div>
+    <div class="field-group">
+      <label>お客様のお名前</label>
+      <input type="text" id="modal-name" placeholder="例：田中様">
+    </div>
+    <div class="field-group">
+      <label>人数</label>
+      <select id="modal-pax">
+        <option value="1">1名</option>
+        <option value="2" selected>2名</option>
+        <option value="3">3名</option>
+        <option value="4">4名</option>
+        <option value="5">5名</option>
+        <option value="6〜">6名以上（詳細はメモに）</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <label>オプション</label>
+      <div class="tag-buttons">
+        <button class="tag-btn" id="tag-nomi" onclick="toggleTag('nomi')">飲み放題</button>
+        <button class="tag-btn" id="tag-bottle" onclick="toggleTag('bottle')">ボトル制</button>
+      </div>
+    </div>
+    <div class="field-group">
+      <label>詳細の人数など</label>
+      <input type="text" id="modal-memo" placeholder="例：7名、誕生日">
+    </div>
+    <div class="modal-buttons">
+      <button class="btn-modal-cancel" onclick="closeModal()">キャンセル</button>
+      <button class="btn-modal-submit" onclick="submitReservation()">予約を確定</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getDatabase, ref, push, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDo78OZnQZlKjGCmxGRNO2stlnekgL5xiY",
+  authDomain: "koenji-db15d.firebaseapp.com",
+  databaseURL: "https://koenji-db15d-default-rtdb.firebaseio.com",
+  projectId: "koenji-db15d",
+  storageBucket: "koenji-db15d.firebasestorage.app",
+  messagingSenderId: "1074905145435",
+  appId: "1:1074905145435:web:682023d193eec974dc5f7e"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const reservationsRef = ref(db, 'reservations_dec');
+
+const YEAR = 2024;
+const MONTH = 12;
+let reservations = {};
+let selectedDate = null;
+let activeTags = { nomi: false, bottle: false };
+
+function getTimeSlots() {
+  const slots = [];
+  for (let h = 19; h <= 22; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      if (h === 19 && m < 30) continue;
+      if (h === 22 && m > 0) break;
+      slots.push(h + ':' + (m === 0 ? '00' : m));
+    }
+  }
+  return slots;
+}
+
+onValue(reservationsRef, (snapshot) => {
+  reservations = snapshot.val() || {};
+  renderCalendar();
+  if (selectedDate) renderDayDetail(selectedDate);
+  const now = new Date();
+  document.getElementById('sync-status').textContent =
+    'リアルタイム同期中　' + now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+});
+
+function renderCalendar() {
+  const grid = document.getElementById('calendar-grid');
+  const days = new Date(YEAR, MONTH, 0).getDate();
+  const firstDay = new Date(YEAR, MONTH - 1, 1).getDay();
+  const today = new Date();
+  const dowNames = ['日','月','火','水','木','金','土'];
+
+  let html = '';
+  dowNames.forEach((d, i) => {
+    html += `<div class="day-header ${i===0?'sun':i===6?'sat':''}">${d}</div>`;
+  });
+  for (let i = 0; i < firstDay; i++) html += '<div class="day-cell empty"></div>';
+
+  for (let d = 1; d <= days; d++) {
+    const dateKey = `2024-12-${String(d).padStart(2,'0')}`;
+    const dow = new Date(YEAR, MONTH - 1, d).getDay();
+    const isToday = today.getFullYear()===YEAR && today.getMonth()===MONTH-1 && today.getDate()===d;
+    const isSelected = selectedDate === dateKey;
+    const dayRes = Object.values(reservations).filter(r => r.date === dateKey);
+
+    let dotsHtml = '';
+    if (dayRes.length === 1) {
+      dotsHtml = `<div class="reservation-dot">${dayRes[0].time} ${dayRes[0].name}</div>`;
+    } else if (dayRes.length === 2) {
+      dayRes.forEach(r => { dotsHtml += `<div class="reservation-dot">${r.time} ${r.name}</div>`; });
+    } else if (dayRes.length > 2) {
+      dotsHtml = `<div class="reservation-dot many">${dayRes.length}件</div>`;
+    }
+
+    html += `<div class="day-cell ${isToday?'today':''} ${dow===0?'sunday':''} ${dow===6?'saturday':''}"
+      onclick="selectDate('${dateKey}')"
+      style="${isSelected?'background:var(--accent-pale);outline:2px solid var(--accent);outline-offset:-2px;':''}">
+      <div class="day-num">${d}</div>${dotsHtml}
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+window.selectDate = function(dateKey) {
+  selectedDate = dateKey;
+  renderCalendar();
+  renderDayDetail(dateKey);
+};
+
+function renderDayDetail(dateKey) {
+  const detail = document.getElementById('day-detail');
+  const d = parseInt(dateKey.split('-')[2]);
+  const dow = new Date(YEAR, MONTH - 1, d).getDay();
+  const dowNames = ['日','月','火','水','木','金','土'];
+
+  const dayRes = {};
+  Object.entries(reservations).forEach(([key, r]) => {
+    if (r.date === dateKey) {
+      if (!dayRes[r.time]) dayRes[r.time] = [];
+      dayRes[r.time].push({...r, key});
+    }
+  });
+
+  let html = `
+    <div class="detail-header">
+      <div class="detail-date">12月${d}日（${dowNames[dow]}）</div>
+      <button class="btn-close-detail" onclick="closeDayDetail()">×</button>
+    </div>
+    <div class="time-slots">
+  `;
+
+  getTimeSlots().forEach(time => {
+    const res = dayRes[time] || [];
+    html += `<div class="time-slot ${res.length>0?'has-reservation':''}">
+      <div class="time-label">${time}</div>
+      <div class="reservation-list">`;
+
+    res.forEach(r => {
+      const tags = r.tags || [];
+      const tagsHtml = tags.length > 0
+        ? `<div class="res-tags">${tags.map(t => `<span class="res-tag">${t}</span>`).join('')}</div>`
+        : '';
+      const memoHtml = r.memo ? `<div class="res-memo">📝 ${r.memo}</div>` : '';
+      html += `<div class="reservation-item">
+        <div class="res-top">
+          <div><span class="res-name">${r.name}</span><span class="res-pax">　${r.pax}名</span></div>
+          <button class="btn-delete-res" onclick="deleteReservation('${r.key}')">削除</button>
+        </div>
+        ${tagsHtml}${memoHtml}
+      </div>`;
+    });
+
+    html += `<button class="btn-add-slot" onclick="openModal('${dateKey}','${time}')">＋</button>
+      </div></div>`;
+  });
+
+  html += '</div>';
+  detail.innerHTML = html;
+  detail.classList.add('active');
+  detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+window.closeDayDetail = function() {
+  selectedDate = null;
+  document.getElementById('day-detail').classList.remove('active');
+  renderCalendar();
+};
+
+window.toggleTag = function(tag) {
+  activeTags[tag] = !activeTags[tag];
+  document.getElementById('tag-' + tag).classList.toggle('active', activeTags[tag]);
+};
+
+function buildDateOptions(preselect) {
+  const sel = document.getElementById('modal-date');
+  const days = new Date(YEAR, MONTH, 0).getDate();
+  sel.innerHTML = '';
+  const dowNames = ['日','月','火','水','木','金','土'];
+  for (let d = 1; d <= days; d++) {
+    const dateKey = `2024-12-${String(d).padStart(2,'0')}`;
+    const dow = new Date(YEAR, MONTH - 1, d).getDay();
+    const opt = document.createElement('option');
+    opt.value = dateKey;
+    opt.textContent = `12月${d}日（${dowNames[dow]}）`;
+    if (preselect === dateKey) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+function buildTimeOptions(preselect) {
+  const sel = document.getElementById('modal-time');
+  sel.innerHTML = '';
+  getTimeSlots().forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = t;
+    if (preselect === t) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+window.openModal = function(dateKey, time) {
+  activeTags = { nomi: false, bottle: false };
+  document.getElementById('tag-nomi').classList.remove('active');
+  document.getElementById('tag-bottle').classList.remove('active');
+  buildDateOptions(dateKey);
+  buildTimeOptions(time);
+  document.getElementById('modal-name').value = '';
+  document.getElementById('modal-memo').value = '';
+  document.getElementById('modal-pax').value = '2';
+  document.getElementById('modal-overlay').classList.add('show');
+};
+
+window.openModalQuick = function() {
+  openModal(selectedDate || '2024-12-01', null);
+};
+
+window.closeModal = function() {
+  document.getElementById('modal-overlay').classList.remove('show');
+};
+
+window.submitReservation = function() {
+  const date = document.getElementById('modal-date').value;
+  const time = document.getElementById('modal-time').value;
+  const name = document.getElementById('modal-name').value.trim();
+  const pax = document.getElementById('modal-pax').value;
+  const memo = document.getElementById('modal-memo').value.trim();
+  const tags = [];
+  if (activeTags.nomi) tags.push('飲み放題');
+  if (activeTags.bottle) tags.push('ボトル制');
+
+  if (!name) { showToast('お客様のお名前を入力してください'); return; }
+
+  push(reservationsRef, { date, time, name, pax, memo, tags, createdAt: Date.now() })
+    .then(() => { closeModal(); showToast('予約を入れました'); })
+    .catch(() => showToast('エラーが発生しました'));
+};
+
+window.deleteReservation = function(key) {
+  if (!confirm('この予約を削除しますか？')) return;
+  remove(ref(db, 'reservations_dec/' + key))
+    .then(() => showToast('削除しました'))
+    .catch(() => showToast('エラーが発生しました'));
+};
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+renderCalendar();
+buildDateOptions(null);
+buildTimeOptions(null);
+</script>
+
+</body>
+</html>
